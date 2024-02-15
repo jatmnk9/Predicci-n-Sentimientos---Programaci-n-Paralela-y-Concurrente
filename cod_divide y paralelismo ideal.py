@@ -38,45 +38,54 @@ def load_data(filename):
     return X, y
 
 # Función para predecir sentimientos de un lote de mensajes de forma paralela
-def predict_batch(classifier, messages, results):
+def predict_batch(classifier, messages, results, barrier):
     for msg in messages:
         classifier.predict_sentiment(msg, results)
+        barrier.wait()
 
-def calculate_parallelism_time(user_messages, classifier):
-    num_messages = len(user_messages)
+def calculate_work(user_messages, classifier):
+    start_time = time.time()
+    results = []
+    for msg in user_messages:
+        classifier.predict_sentiment(msg, results)
+    end_time = time.time()
+    work = end_time - start_time
+    return work
+
+def calculate_span(user_messages, classifier):
     start_time = time.time()
 
-    classifier.barrier = threading.Barrier(num_messages) 
     results = []
-    threads = []
     for msg in user_messages:
-        thread = threading.Thread(target=predict_batch, args=(classifier, [msg], results))
-        thread.start()
-        threads.append(thread)
-
-    for thread in threads:
-        thread.join()
+        classifier.predict_sentiment(msg, results)
 
     end_time = time.time()
+    span = end_time - start_time
+    return span
 
-    parallel_time = end_time - start_time
+def calculate_parallelism_time(user_messages, classifier):
+    # Calcular el trabajo
+    work = calculate_work(user_messages, classifier)
 
-    serial_time = parallel_time  # Asignamos serial_time = parallel_time para que la comparación sea justa
+    # Calcular el span
+    span = calculate_span(user_messages, classifier)
 
-    ideal_parallelism_time = serial_time / parallel_time
-    print("Paralelismo ideal:", "{:.20f}".format(ideal_parallelism_time))
-
+    # Calcular el paralelismo ideal como work/span
+    ideal_parallelism_time = work / span
+    print("Paralelismo ideal:", ideal_parallelism_time)
 
 # Función para dividir los mensajes en lotes y procesarlos en paralelo
 def divide_and_conquer(messages, classifier, num_threads):
     batch_size = len(messages) // num_threads
     results = []
+    barrier = threading.Barrier(num_threads)
+
     threads = []
     for i in range(num_threads):
         start_index = i * batch_size
         end_index = start_index + batch_size if i < num_threads - 1 else len(messages)
         batch_messages = messages[start_index:end_index]
-        thread = threading.Thread(target=predict_batch, args=(classifier, batch_messages, results))
+        thread = threading.Thread(target=predict_batch, args=(classifier, batch_messages, results, barrier))
         thread.start()
         threads.append(thread)
 
