@@ -62,7 +62,7 @@ def main():
     user_messages = [input(f"Introduce el mensaje {i + 1}: ") for i in range(num_messages)]
 
     # Actualizar la barrera con el número de mensajes ingresados por el usuario
-    classifier.barrier = Barrier(num_messages)  # El +1 es para incluir el hilo principal
+    classifier.barrier = Barrier(num_messages)  
 
     # Predicción de sentimientos para los mensajes ingresados por el usuario
     results = []
